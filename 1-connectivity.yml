@@ -1,0 +1,27 @@
+
+---
+- name: Test intf configuration
+  hosts: ALL_CORE
+  gather_facts: no
+  connection: local
+
+  vars:
+    ping_inconsistency: []
+
+  tasks:
+
+  - name: Ping AAA from remote switches
+    exos_command:
+      commands: "ping {{ hostvars[item].aaa.ip | ipaddr('address') }}"
+    register: ping_status
+    loop: "{{ groups['AAA_ENABLED'] }}"
+
+  - name: "Check if pings where ok"
+    set_fact:
+      ping_inconsistency: "{{ ping_inconsistency + [ inventory_hostname + ': packet loss or error pinging AAA @ PoP ' + item.item ]}}"
+    when: '" 0% loss" not in item.stdout[0] or "0 packets transmitted" in item.stdout[0]'
+    loop: "{{ ping_status.results }}"
+
+  - name: Analyze and print result
+    debug:
+       msg: "{{ 'Connectivity ok' if (ping_inconsistency | length) == 0 else ping_inconsistency}}"

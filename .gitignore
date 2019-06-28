@@ -1,0 +1,3 @@
+*.inv
+host_vars/
+group_vars/

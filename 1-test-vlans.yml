@@ -1,0 +1,39 @@
+
+---
+- name: Test intf configuration
+  hosts: ALL_CORE
+  gather_facts: no
+  connection: local
+
+  vars:
+    intf_inconsistency: []
+
+  tasks:
+
+  - name: run show version on remote devices
+    exos_command:
+      commands: show vlan
+    register: raw_intf_info
+
+  - set_fact:
+      intf_info: "{{ raw_intf_info.stdout[0] | parse_cli_textfsm('templates/vlans.textfsm') }}"
+
+  - debug:
+      msg: "{{ intf_info }}"
+
+  - name: "Check if intf configured"
+    set_fact:
+      intf_inconsistency: "{{ intf_inconsistency + [ inventory_hostname + ': intf ' + item + ' has invalid config' ]}}"
+    when: "
+          intf_info | json_query(qry) | length == 0
+      or (intf_info | json_query(qry))[0].id | int != interfaces[item].vlan_id | int
+      or (intf_info | json_query(qry))[0].address != interfaces[item].ip | ipaddr('address')
+      or (intf_info | json_query(qry))[0].prefix | int != interfaces[item].ip | ipaddr('prefix')"
+
+    with_items: "{{ interfaces }}"
+    vars:
+      qry: "[?name=='{{ item }}']"
+
+  - name: Analyze and print result
+    debug:
+       msg: "{{ 'Intf ok' if (intf_inconsistency | length) == 0 else intf_inconsistency}}"

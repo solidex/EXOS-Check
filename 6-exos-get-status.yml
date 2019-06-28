@@ -1,0 +1,24 @@
+
+---
+- name: Check NTP
+  hosts: ALL_CORE
+  gather_facts: no
+  connection: local
+
+  vars:
+    ansible_port: 22
+    ntp_inconsistency: []
+
+  tasks:
+
+
+  - name: run show switch on remote devices
+    exos_command:
+      commands: show switch
+    register: raw_switch_info
+
+  - set_fact:
+      switch_info: "{{ raw_switch_info.stdout[0] | parse_cli_textfsm('templates/show_switch.textfsm') }}"
+
+  - debug:
+      msg: "{{ switch_info }}"

@@ -1,0 +1,17 @@
+
+---
+- name: Check SNMP
+  hosts: ALL_CORE
+  gather_facts: no
+  connection: local
+
+  tasks:
+
+
+  - name: run show switch on remote devices
+    exos_command:
+      commands: show configuration | in snmp
+    register: show configuration "snmp"
+
+  - debug:
+      msg: "{{ show configuration "snmp" }}"

@@ -1,0 +1,44 @@
+
+---
+- name: Check accounts config
+  hosts: ALL_CORE
+  gather_facts: no
+  connection: local
+
+  vars:
+    acc_inconsistency: []
+
+  tasks:
+
+  - name: run show version on remote devices
+    exos_command:
+      commands: show accounts
+    register: raw_acc_info
+
+  - set_fact:
+      acc_info: "{{ raw_acc_info.stdout[0] | parse_cli_textfsm('templates/accounts.textfsm') }}"
+
+  - debug:
+      msg: "{{ acc_info }}"
+
+  - name: "Check if accounts configured"
+    set_fact:
+      acc_inconsistency: "{{ acc_inconsistency + [ inventory_hostname + ': account ' + item.name + ' not configured' ]}}"
+    when: "
+          acc_info | json_query(qry) | length == 0"
+    with_items: "{{ accounts }}"
+    vars:
+      qry: "[?name=='{{ item.name }}']"
+
+  - name: "Check if excessive accounts configured"
+    set_fact:
+      acc_inconsistency: "{{ acc_inconsistency + [ inventory_hostname + ': account ' + item.name + ' should NOT be configured' ]}}"
+    when: "
+          accounts | json_query(qry) | length == 0"
+    with_items: "{{ acc_info }}"
+    vars:
+      qry: "[?name=='{{ item.name }}']"
+
+  - name: Analyze and print result
+    debug:
+       msg: "{{ 'Accounts ok' if (acc_inconsistency | length) == 0 else acc_inconsistency}}"
